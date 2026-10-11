@@ -3,7 +3,7 @@ from dataloader_3d import ImageGraphDataset, collate_fn, create_dataloaders_for_
     create_dataloaders_for_result_file
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from models.graph_construction import edge_index_to_adj_matrix
+from training_3d_cache import GraphInputCache
 from models.model_3d import ST_GTC_3d
 import warnings
 import os
@@ -156,6 +156,7 @@ if __name__ == "__main__":
 
         optimizer = optim.SGD(model.parameters(), lr=base_lr, momentum=0.9)
         model.cuda()
+        graph_cache = GraphInputCache(device)
 
         for epoch_num in tqdm(range(max_epoch), ncols=70):
             model.train()
@@ -173,25 +174,24 @@ if __name__ == "__main__":
                 tmp_name = file_name.split('/')[-1][:-4]
 
                 for images, labels, adj_sub, adj_propagate, positions, idx_1024, idx_512, features_1024, features_512, graph_torch, known_label in tmp_loader:
-                    graph_512 = graph_torch['layer_512']
-                    graph_1024 = graph_torch['layer_1024']
+                    graph_x_512, graph_x_1024, adj_512, adj_1024, graph_y_512, graph_y_1024 = graph_cache.get(graph_torch)
 
                     batch_data = [
                         images, adj_sub, adj_propagate, features_512, features_1024,
-                        graph_512.x, graph_1024.x,
-                        edge_index_to_adj_matrix(graph_512), edge_index_to_adj_matrix(graph_1024),
+                        graph_x_512, graph_x_1024, adj_512, adj_1024,
                         known_label
                     ]
 
                     batch_data = [data.to(device) for data in batch_data]
+                    labels_device = labels.to(device)
 
                     pred, pred_512, pred_1024 = model(*batch_data)
-                    pred_512_con = pred_512.cpu()[idx_512.cpu()]
-                    pred_1024_con = pred_1024.cpu()[idx_1024.cpu()]
+                    pred_512_con = pred_512[idx_512.to(device)]
+                    pred_1024_con = pred_1024[idx_1024.to(device)]
 
-                    loss_other_layer_predict = pcc_loss(graph_512.y.cuda(), pred_512) + pcc_loss(graph_1024.y.cuda(), pred_1024)
-                    loss_consistency = pcc_loss(pred_512_con.cuda(), labels.cuda()) + pcc_loss(pred_1024_con.cuda(), labels.cuda())
-                    loss_spot_predict = 0.75 * mse_loss_fn(pred, labels.cuda()) + 0.25 * pcc_loss(pred, labels.cuda())
+                    loss_other_layer_predict = pcc_loss(graph_y_512, pred_512) + pcc_loss(graph_y_1024, pred_1024)
+                    loss_consistency = pcc_loss(pred_512_con, labels_device) + pcc_loss(pred_1024_con, labels_device)
+                    loss_spot_predict = 0.75 * mse_loss_fn(pred, labels_device) + 0.25 * pcc_loss(pred, labels_device)
 
                     loss = loss_spot_predict + 0.125 * loss_other_layer_predict + 0.125 * loss_consistency
 
@@ -224,25 +224,26 @@ if __name__ == "__main__":
                         total_samples = 0
 
                         for images, labels, adj_sub, adj_propagate, positions, idx_1024, idx_512, features_1024, features_512, graph_torch, known_label, indices, _ in tmp_loader:
-                            graph_512 = graph_torch['layer_512']
-                            graph_1024 = graph_torch['layer_1024']
+                            graph_x_512, graph_x_1024, adj_512, adj_1024, _, _ = graph_cache.get(graph_torch)
 
                             batch_data = [
                                 images, adj_sub, adj_propagate, features_512, features_1024,
-                                graph_512.x, graph_1024.x,
-                                edge_index_to_adj_matrix(graph_512), edge_index_to_adj_matrix(graph_1024),
+                                graph_x_512, graph_x_1024, adj_512, adj_1024,
                                 known_label
                             ]
                             batch_data = [data.to(device) for data in batch_data]
                             pred, b, c, = model(*batch_data)
-                            loss = mse_loss_fn(pred[indices], labels[indices].cuda())
+                            pred_eval = pred[indices]
+                            labels_eval = labels[indices].to(device)
+                            loss = mse_loss_fn(pred_eval, labels_eval)
+                            batch_pcc = calculate_pcc(pred_eval, labels_eval)
                             val_loss += loss.item() * len(indices)
                             total_samples += len(indices)
                             val_mae += np.mean(
-                                np.abs(pred[indices].cpu().numpy() - labels[indices].cpu().numpy())) * len(
+                                np.abs(pred_eval.cpu().numpy() - labels[indices].cpu().numpy())) * len(
                                 indices)
-                            val_pcc += calculate_pcc(pred[indices], labels[indices].cuda()) * len(indices)
-                            print(f'mse {loss}, pcc {calculate_pcc(pred[indices], labels[indices].cuda())}')
+                            val_pcc += batch_pcc * len(indices)
+                            print(f'mse {loss}, pcc {batch_pcc}')
 
             if (epoch_num+1) % max_epoch == 0:
                 model.eval()
@@ -256,13 +257,11 @@ if __name__ == "__main__":
                         total_samples = 0
 
                         for images, labels, adj_sub, adj_propagate, positions, idx_1024, idx_512, features_1024, features_512, graph_torch, known_label, indices, _ in tmp_loader:
-                            graph_512 = graph_torch['layer_512']
-                            graph_1024 = graph_torch['layer_1024']
+                            graph_x_512, graph_x_1024, adj_512, adj_1024, _, _ = graph_cache.get(graph_torch)
 
                             batch_data = [
                                 images, adj_sub, adj_propagate, features_512, features_1024,
-                                graph_512.x, graph_1024.x,
-                                edge_index_to_adj_matrix(graph_512), edge_index_to_adj_matrix(graph_1024),
+                                graph_x_512, graph_x_1024, adj_512, adj_1024,
                                 known_label
                             ]
 
@@ -270,14 +269,17 @@ if __name__ == "__main__":
 
                             pred, b, c, = model(*batch_data)
 
-                            loss = mse_loss_fn(pred[indices], labels[indices].cuda())
+                            pred_eval = pred[indices]
+                            labels_eval = labels[indices].to(device)
+                            loss = mse_loss_fn(pred_eval, labels_eval)
+                            batch_pcc = calculate_pcc(pred_eval, labels_eval)
                             val_loss += loss.item() * len(indices)
                             total_samples += len(indices)
                             val_mae += np.mean(
-                                np.abs(pred[indices].cpu().numpy() - labels[indices].cpu().numpy())) * len(
+                                np.abs(pred_eval.cpu().numpy() - labels[indices].cpu().numpy())) * len(
                                 indices)
-                            val_pcc += calculate_pcc(pred[indices], labels[indices].cuda()) * len(indices)
-                            print(f'mse {loss}, pcc {calculate_pcc(pred[indices], labels[indices].cuda())}')
+                            val_pcc += batch_pcc * len(indices)
+                            print(f'mse {loss}, pcc {batch_pcc}')
 
                         mse_metrics.append(val_loss / total_samples)
                         mae_metrics.append(val_mae / total_samples)

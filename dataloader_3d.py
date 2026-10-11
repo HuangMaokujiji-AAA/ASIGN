@@ -35,6 +35,8 @@ class ImageGraphDataset(Dataset):
         self.layer_512 = self.graph['layer_512'].y
         self.layer_1024 = self.graph['layer_1024'].y
         self.adj_matrix = pd.read_csv(adj_matrix)
+        # Cache metadata only; images and random transforms are still loaded each time.
+        self._static_indices = [None] * len(self.data_list)
 
         # Initialize train_data and test_data
         self.train_data, self.test_data = self._split_data_by_level()
@@ -46,6 +48,17 @@ class ImageGraphDataset(Dataset):
 
     def __len__(self):
         return len(self.data_list)
+
+    def _get_static_indices(self, idx):
+        if self._static_indices[idx] is None:
+            item = self.data_list[idx]
+            idx_1024 = find_closest_column(item['label_1024'], self.layer_1024)
+            idx_512 = find_closest_column(item['label_512'], self.layer_512)
+            img_name = item['img_path'].split('/')
+            column_name = f'{img_name[2][:2]}_{img_name[3][:-4]}'
+            idx_matrix = self.adj_matrix.columns.get_loc(column_name)
+            self._static_indices[idx] = (idx_1024, idx_512, idx_matrix)
+        return self._static_indices[idx]
 
     def __getitem__(self, idx):
         """
@@ -67,17 +80,7 @@ class ImageGraphDataset(Dataset):
         feature_1024 = self.data_list[idx]['feature_1024']
         feature_512 = self.data_list[idx]['feature_512']
 
-        idx_1024 = find_closest_column(self.data_list[idx]['label_1024'], self.layer_1024)
-        idx_512 = find_closest_column(self.data_list[idx]['label_512'], self.layer_512)
-
-        img_name = self.data_list[idx]['img_path'].split('/')
-
-        """ """
-        # column_name = f'{img_name[2][:2]}_{img_name[3][:-4]}'
-
-        column_name = f'{img_name[2][:2]}_{img_name[3][:-4]}'
-
-        idx_matrix = self.adj_matrix.columns.get_loc(column_name)
+        idx_1024, idx_512, idx_matrix = self._get_static_indices(idx)
         level = self.data_list[idx]['level']
 
         return image, label.astype(np.float32), position, int(idx_1024), int(idx_512), feature_1024.astype(
