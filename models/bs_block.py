@@ -61,17 +61,17 @@ class gs_block_with_attention_fixed_weights(nn.Module):
 
         # Apply attention mechanism for weighted neighbor aggregation
         if self.policy == 'mean' and self.attention:
-            att_scores = torch.matmul(x, self.att_weight).squeeze()
+            att_scores = torch.matmul(x, self.att_weight).squeeze(-1)
             att_scores = F.softmax(att_scores, dim=0)
 
             num_neigh = adj.sum(1, keepdim=True)
-            mask = adj.div(num_neigh)
+            mask = adj.div(num_neigh.clamp(min=1e-10))
             weighted_feats = mask * att_scores.unsqueeze(1)
             to_feats = weighted_feats.mm(x)
 
         elif self.policy == 'mean':
             num_neigh = adj.sum(1, keepdim=True)
-            mask = adj.div(num_neigh)
+            mask = adj.div(num_neigh.clamp(min=1e-10))
             to_feats = mask.mm(x)
 
         elif self.policy == 'max':

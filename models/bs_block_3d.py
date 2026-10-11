@@ -98,18 +98,18 @@ class gs_block_with_attention_fixed_weights_3d(nn.Module):
 
         if self.policy == 'mean' and self.attention:
             # Compute attention scores for node features
-            att_scores = torch.matmul(x, self.att_weight).squeeze()  # [N, 1] → [N]
+            att_scores = torch.matmul(x, self.att_weight).squeeze(-1)  # [N, 1] → [N]
             att_scores = F.softmax(att_scores, dim=0)  # Normalize
 
             # Compute weighted average of neighbor features
             num_neigh = adj.sum(1, keepdim=True)
-            mask = adj.div(num_neigh)  # Normalize adjacency
+            mask = adj.div(num_neigh.clamp(min=1e-10))  # Normalize adjacency
             weighted_feats = mask * att_scores.unsqueeze(1)  # Apply attention scores
             to_feats = weighted_feats.mm(x)  # Weighted sum of neighbors
 
         elif self.policy == 'mean':
             num_neigh = adj.sum(1, keepdim=True)
-            mask = adj.div(num_neigh)
+            mask = adj.div(num_neigh.clamp(min=1e-10))
             to_feats = mask.mm(x)
 
         elif self.policy == 'max':
