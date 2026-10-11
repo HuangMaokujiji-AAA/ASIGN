@@ -55,9 +55,8 @@ class ImageGraphDataset(Dataset):
         # img_dir = './HER2'
         # image_path = os.path.join(img_dir, self.data_list[idx]['img_path'])
 
-        img_dir = './ST_Breast/cropped_imgs/patch_224'
-        image_path = os.path.join(img_dir, self.name, self.data_list[idx]['img_path'].split('/')[-2] + '/' +
-                                  self.data_list[idx]['img_path'].split('/')[-1])
+        img_dir = '/private_sdb/huangyingjie/data/ASIGN/HER2_3D'
+        image_path = os.path.join(img_dir, self.data_list[idx]['img_path'])
 
         image = Image.open(image_path).convert('RGB')
         if self.transform:
@@ -195,8 +194,8 @@ def create_dataloaders_for_train_file(npy_file_paths, batch_size=32, transform=N
         # graph_path = f"./HER2_3D/3D_graph_data/{name}.pt"
         # adj_matrix_path = f'./HER2_3D/3D_combined_information/{name}.csv'
 
-        graph_path = f'./ST_Breast_3D/3D_graph_data/{name}.pt'
-        adj_matrix_path = f'./ST_Breast_3D/3D_combined_information/{name}.csv'
+        graph_path = f'/private_sdb/huangyingjie/data/ASIGN/HER2_3D/3D_graph_data/{name}.pt'
+        adj_matrix_path = f'/private_sdb/huangyingjie/data/ASIGN/HER2_3D/3D_combined_information/{name}.csv'
 
         dataset = ImageGraphDataset(npy_file, graph_path, adj_matrix_path, transform=transform)
         adj_matrix_df = dataset.adj_matrix
@@ -219,8 +218,8 @@ def create_dataloaders_for_result_file(npy_file_paths, batch_size=32, transform=
         # graph_path = f"./HER2_3D/3D_graph_data/{name}.pt"
         # adj_matrix_path = f'./HER2_3D/3D_combined_information/{name}.csv'
 
-        graph_path = f'./ST_Breast_3D/3D_graph_data/{name}.pt'
-        adj_matrix_path = f'./ST_Breast_3D/3D_combined_information/{name}.csv'
+        graph_path = f'/private_sdb/huangyingjie/data/ASIGN/HER2_3D/3D_graph_data/{name}.pt'
+        adj_matrix_path = f'/private_sdb/huangyingjie/data/ASIGN/HER2_3D/3D_combined_information/{name}.csv'
 
         dataset = ImageGraphDataset(npy_file, graph_path, adj_matrix_path, transform=transform)
         adj_matrix_df = dataset.adj_matrix

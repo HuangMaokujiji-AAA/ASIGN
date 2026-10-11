@@ -46,7 +46,7 @@ class ImageGraphDataset(Dataset):
         return len(self.data_list)
 
     def __getitem__(self, idx):
-        img_dir = './Our_data_format/HER2'
+        img_dir = '/private_sdb/huangyingjie/data/ASIGN/HER2_3D'
         image_path = os.path.join(img_dir, self.data_list[idx]['img_path'])
         image = Image.open(image_path).convert('RGB')
         if self.transform:
@@ -90,7 +90,7 @@ def create_dataloaders_for_each_file(npy_file_paths, batch_size=32, transform=No
     for npy_file in npy_file_paths:
         name = npy_file.split('/')[-1][:-4]
 
-        graph_path = f'./HER2/graph_data/{name}.pt'
+        graph_path = f'/private_sdb/huangyingjie/data/ASIGN/HER2_3D/graph_data/{name}.pt'
 
         dataset = ImageGraphDataset(npy_file, graph_path, transform=transform)
         graph_data = dataset.graph

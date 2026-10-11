@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore", category=FutureWarning,
 
 # ./HER2_3D
 parser = argparse.ArgumentParser()
-parser.add_argument('--root_path', type=str, default='./ST_Breast_3D',
+parser.add_argument('--root_path', type=str, default='/private_sdb/huangyingjie/data/ASIGN/HER2_3D',
                     help='Name of Experiment')
 parser.add_argument('--max_iterations', type=int, default=25000, help='maximum epoch number to train')
 parser.add_argument('--base_lr', type=float, default=0.001, help='maximum epoch number to train')

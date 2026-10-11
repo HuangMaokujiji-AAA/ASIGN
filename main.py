@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, message="You are using
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--root_path', type=str, default='./Our_data_format/ST_Breast',
+parser.add_argument('--root_path', type=str, default='/private_sdb/huangyingjie/data/ASIGN/HER2_3D',
                     help='Name of Experiment')
 parser.add_argument('--max_iterations', type=int, default=25000, help='maximum epoch number to train')
 parser.add_argument('--base_lr', type=float, default=0.001, help='maximum epoch number to train')
