@@ -75,7 +75,7 @@ class ImageGraphDataset(Dataset):
         """ """
         # column_name = f'{img_name[2][:2]}_{img_name[3][:-4]}'
 
-        column_name = f'{img_name[2][:2]}__{img_name[3][:-4]}'
+        column_name = f'{img_name[2][:2]}_{img_name[3][:-4]}'
 
         idx_matrix = self.adj_matrix.columns.get_loc(column_name)
         level = self.data_list[idx]['level']
